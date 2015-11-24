@@ -1,7 +1,7 @@
 NBA_Predictions_V4
 ==================
 
-Reworked NBA Predictions (Version 4- in Python)
+Reworked NBA Predictions (Python Version)
 
 I've decided to rework my NBA Prediction code from R to Python.  Mostly to see if I could do it, and also to see if I could speed it up a bit.  I'll update here with current speed/accuracy results as the 2014-15 season plays out. The structure and format is pretty much the same, with the exception that it's cleaner code.  I still need to comment it a bit more, but it's Git ready for now.
 
