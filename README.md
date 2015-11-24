@@ -1,4 +1,4 @@
-NBA_Predictions_V4
+NBA_Predictions (Python Version)
 ==================
 
 Reworked NBA Predictions (Python Version)
