@@ -33,7 +33,7 @@ Then for the current day, the online sports book odds are downloaded, compared a
 
 Current Speed Statistics:
 =========================
-TBD
+Current Estimate for total running time is ~ 3.5 hours.  This is not including the 10am run of the tweeter script, which will tweet out the best bets for the day.
 
 Current Accuracy Statistics:
 ============================
