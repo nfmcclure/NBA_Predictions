@@ -21,8 +21,9 @@ import matplotlib.pyplot as plt
 import re
 import logging
 
-wd = 'C:\\Users\\Nicholas\\PycharmProjects\\NBA_Predictions'
-os.chdir(wd)
+pd.set_option('display.max_rows', 50)
+pd.set_option('display.max_columns', 25)
+pd.set_option('display.width', 500)
 
 ######
 # Set Parameters:
@@ -58,7 +59,7 @@ yesterday = yesterday.strftime("%Y-%m-%d")
 
 ######
 # Set Logging Information
-log_filename = wd + '\\NBA_GA_log' + today.replace('-','') + '.log'
+log_filename = os.path.join('logs', 'NBA_GA_log_' + today.replace('-', '') + '.log')
 logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s : %(message)s')
 
 logging.info('Starting NBA GA Prediction')
@@ -72,7 +73,7 @@ logging.info('today = %s', today)
 
 ######
 # Perform web scrapers
-year = 2015
+year = 2017
 
 team_site1 = "http://www.basketball-reference.com/play-index/tsl_finder.cgi?"\
              "request=1&match=single&type=team_per_game&lg_id=&year_min="+str(year)+"&year_max="+str(year)+\
@@ -99,7 +100,7 @@ player_site2 = "http://www.basketball-reference.com/play-index/psl_finder.cgi?re
                "c1val=&c2stat=&c2comp=gt&c2val=&c3stat=&c3comp=gt&c3val=&c4stat=&c4comp=gt&c4val=&c5stat=&"\
                "c5comp=gt&c6mult=1.0&c6stat=&order_by=player&order_by_asc=Y"
 
-schedule_site = "http://www.basketball-reference.com/leagues/NBA_"+str(year)+"_games.html"
+schedule_site = "http://www.basketball-reference.com/leagues/NBA_"+str(year)+"_games-"
 
 health_site = "http://espn.go.com/nba/injuries"
 
@@ -118,13 +119,13 @@ player_data2_labels = ['rank','age','games','games_started','min_played','per','
                        'ws_48','fg_per','two_p_per','three_p_per','ft_per']
 
 logging.info('Performing Web-scrapes')
-team_data1 = Webstats_Funs.get_team_stats(site=team_site1, headers=team_data1_labels)
+team_data1 = Webstats_Funs.get_stats(site=team_site1)
 team_data1['update_date'] = today
-team_data2 = Webstats_Funs.get_team_stats(site=team_site2, headers=team_data2_labels)
+team_data2 = Webstats_Funs.get_stats(site=team_site2)
 team_data2['update_date'] = today
-player_data1 = Webstats_Funs.get_player_stats(site=player_site1, headers=player_data1_labels)
+player_data1 = Webstats_Funs.get_stats(site=player_site1, paginate=True)
 player_data1['update_date'] = today
-player_data2 = Webstats_Funs.get_player_stats(site=player_site2, headers=player_data2_labels)
+player_data2 = Webstats_Funs.get_stats(site=player_site2, paginate=True)
 player_data2['update_date'] = today
 health_data = Webstats_Funs.get_injury_list(site=health_site)
 health_data['update_date'] = today

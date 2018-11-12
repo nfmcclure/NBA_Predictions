@@ -39,6 +39,6 @@ tmtagsHistory
 *.sublime-project
 *.sublime-workspace
 .bundle
-
+venv/*
 .idea/libraries/R_User_Library.xml
 .idea/vcs.xml

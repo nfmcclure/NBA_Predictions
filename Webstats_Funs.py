@@ -8,11 +8,16 @@
 #
 ################################################################
 
-import pandas as pd
-import numpy as np
-import requests
-from lxml import html
 import re
+import requests
+import logging
+import numpy as np
+import pandas as pd
+from lxml import html
+from bs4 import BeautifulSoup
+
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def xnum(s,val):
@@ -26,156 +31,244 @@ def xnum(s,val):
 #     return str(s)
 
 
-def get_team_stats(site, headers):
+def get_stats(site, paginate=False):
+    """
+    :param site: String. Website HTML address for table of statistics.
+    :param paginate: Logical. If results are paginated, keep getting more.
+    :return: pandas dataframe of team statistics.
+    """
+    # Get site response structure object.
     page = requests.get(site)
-    tree = html.fromstring(page.text)
-    stats = tree.xpath('//td[@align="right"]/text()')
-    stats = [float(x) for x in stats]
-    stats_frame = np.array(stats).reshape(30,(len(stats)/30))
-    stats_frame = pd.DataFrame(stats_frame, columns=headers)
+    # Extract the HTML text.
+    site_html = page.text
+    # Convert HTML text to beautiful soup object
+    soup = BeautifulSoup(site_html, features="lxml")
+    # Get specific table
+    table = soup.find("table", attrs={"id": "stats"})
+    # Get column names
+    headings = [th.get_text() for th in table.find_all("tr")[1].find_all("th")][1:]
+    # Store column information into a dataframe
+    data_df = pd.DataFrame(columns=headings)
+    for row in table.find_all("tr")[2:]:
+        temp_dict = dict(zip(headings, (td.get_text() for td in row.find_all("td"))))
+        data_df = data_df.append(temp_dict, ignore_index=True)
 
-    teams = tree.xpath('//td[@align="left"]/a[starts-with(@href,"/teams")]/text()')
-    stats_frame['team'] = teams
+    # Get more paginated results
+    if paginate:
+        text_addon = "&offset="
+        seq_addon = range(100, 401, 100)
+        for a in seq_addon:
+            # Get site response structure object.
+            page = requests.get(site + text_addon + str(a))
+            # Extract the HTML text.
+            site_html = page.text
+            # Convert HTML text to beautiful soup object
+            soup = BeautifulSoup(site_html)
+            # Get specific table
+            table = soup.find("table", attrs={"id": "stats"})
+            for row in table.find_all("tr")[2:]:
+                temp_dict = dict(zip(headings, (td.get_text() for td in row.find_all("td"))))
+                data_df = data_df.append(temp_dict, ignore_index=True)
 
-    return stats_frame
+    # Rename some team names that have stars after
+    data_df['Tm'] = data_df['Tm'].str.replace('*', '')
+    # Drop spacer rows that have NA as values (remnant from HTML site)
+    data_df = data_df.dropna(how='all')
 
-
-def get_player_stats(site, headers):
-    page1 = requests.get(site)
-    tree1 = html.fromstring(page1.text)
-    stats1 = tree1.xpath('//td[@align="right"]')
-    stats1 = [x.text for x in stats1]
-    stats1 = [xnum(x,0) for x in stats1]
-    names1 = tree1.xpath('//td[@align="left"][@class=" highlight_text"]/a/text()')
-    teams1 = tree1.xpath('//td[@align="left"]/a[starts-with(@href,"/teams")]/text()')
-
-    text_addon = "&offset="
-    seq_addon = range(100,401,100)
-    for a in seq_addon:
-        page_temp = requests.get(site+text_addon+str(a))
-        tree_temp = html.fromstring(page_temp.text)
-        stats_temp = tree_temp.xpath('//td[@align="right"]')
-        stats_temp = [x.text for x in stats_temp]
-        stats_temp = [xnum(x,0) for x in stats_temp]
-        stats1.extend(stats_temp)
-        names_temp = tree_temp.xpath('//td[@align="left"][@class=" highlight_text"]/a/text()')
-        teams_temp = tree_temp.xpath('//td[@align="left"]/a[starts-with(@href,"/teams")]/text()')
-        names1.extend(names_temp)
-        teams1.extend(teams_temp)
-
-    stats1 = np.array(stats1).reshape((len(stats1)/26,26))
-    stats1 = pd.DataFrame(stats1, columns=headers)
-    stats1['name'] = names1
-    stats1['team'] = teams1
-    return stats1
+    return data_df
 
 
 def get_schedule(site):
-    page = requests.get(site)
-    tree = html.fromstring(page.text)
-    names = tree.xpath('//td[@align="left"]/a/text()')
-    score_names = tree.xpath('//td[@align="right"]')
-    score_names = [x.text for x in score_names]
-    score_names = [xnum(x,-1) for x in score_names]
-    date_list = names[0::3]
-    visitor_list = names[1::3]
-    home_list = names[2::3]
-    visitor_score = score_names[0::2]
-    home_score = score_names[1::2]
-    schedule_frame = pd.DataFrame({'date': date_list,
-                                   'visitor': visitor_list,
-                                   'home': home_list,
-                                   'visitor_pts': visitor_score,
-                                   'home_pts': home_score})
-    return schedule_frame
+    """
+    :param site: string. Base URL of schedule site.
+    :return: Dataframe of NBA schedule with scores and stats.
+    """
+    month_seq = ['october', 'november', 'december', 'january', 'february', 'march', 'april', 'may', 'june']
+    data_df = pd.DataFrame()
+    for month in month_seq:
+        # Get site response structure object.
+        page = requests.get(site + month + '.html')
+        if page.status_code == 200:
+            # Extract the HTML text.
+            site_html = page.text
+            # Convert HTML text to beautiful soup object
+            soup = BeautifulSoup(site_html, features="lxml")
+            # Get specific table
+            table = soup.find("table", attrs={"id": "schedule"})
+            # Get column names
+            headings = [th.get_text() for th in table.find_all("tr")[0].find_all("th")]
+            headings[6:8] = ['temp', 'overtime']
+            # Store column information into a dataframe
+            for row in table.find_all("tr")[1:]:
+                temp_date = [td.get_text() for td in row.find_all("th")]
+                temp_row = temp_date + [td.get_text() for td in row.find_all("td")]
+                temp_dict = dict(zip(headings, temp_row))
+                data_df = data_df.append(temp_dict, ignore_index=True)
+        else:
+            log.warn('Got status code: {} for URL request: {}'.format(page.status_code, site + month + '.html'))
+
+    # Drop strange 'box score' column.
+    data_df = data_df.drop('temp', 1)
+
+    return data_df
 
 
 ######
 # Get injury reserve list
 def get_injury_list(site):
+    """
+    :param site: String. URL of the nba injured reserve list.
+    :return: dataframe. DF of injuries and details.
+    """
+    # List team names:
+    teams = ['Atlanta Hawks',
+             'Boston Celtics',
+             'Brooklyn Nets',
+             'Charlotte Hornets',
+             'Chicago Bulls',
+             'Cleveland Cavaliers',
+             'Dallas Mavericks',
+             'Denver Nuggets',
+             'Detroit Pistons',
+             'Golden State Warriors',
+             'Houston Rockets',
+             'Indiana Pacers',
+             'LA Clippers',
+             'Los Angeles Lakers',
+             'Memphis Grizzlies',
+             'Miami Heat',
+             'Milwaukee Bucks',
+             'Minnesota Timberwolves',
+             'New Orleans Pelicans',
+             'New York Knicks',
+             'Oklahoma City Thunder',
+             'Orlando Magic',
+             'Philadelphia 76ers',
+             'Phoenix Suns',
+             'Portland Trail Blazers',
+             'Sacremento Kings',
+             'San Antonio Spurs',
+             'Toronto Raptors',
+             'Utah Jazz',
+             'Washington Wizards']
+    # Get site response structure object.
     page = requests.get(site)
-    tree = html.fromstring(page.text)
-    names_even = tree.xpath('//tr[starts-with(@class,"evenrow player")]/td/a/text()')
-    names_odd = tree.xpath('//tr[starts-with(@class,"oddrow player")]/td/a/text()')
-    status_even = tree.xpath('//tr[starts-with(@class,"evenrow player")]/td/following-sibling::td/text()')
-    status_even = status_even[0::2]
-    status_odd = tree.xpath('//tr[starts-with(@class,"oddrow player")]/td/following-sibling::td/text()')
-    status_odd = status_odd[0::2]
+    # Extract the HTML text.
+    site_html = page.text
+    # Convert HTML text to beautiful soup object
+    soup = BeautifulSoup(site_html, "html5lib")
+    # Get specific table
+    table = soup.find("table", attrs={"class": "tablehead"})
+    # Store column information into a dataframe
+    data_df = pd.DataFrame()
+    comments = []
+    team_name, name, status, date = None, None, None, None
+    new_name, new_status, new_date = None, None, None
+    for row in table.find_all("tr"):
+        text_entries = [x.get_text() for x in row.find_all('td')]
+        # Determine if we have a team name, injury entry, or comment entry.
+        if len(text_entries) == 1:
+            if text_entries[0] in teams:
+                team_name = text_entries[0]
+            else:
+                comments.append(text_entries[0])
+        elif len(text_entries) == 3 and text_entries[0] != 'NAME':
+            new_name, new_status, new_date = text_entries
+        if new_name != name or new_status != status or new_date != date:
+            name, status, date = new_name, new_status, new_date
+            data_df = data_df.append({'Tm': team_name,
+                                      'name': name,
+                                      'player_status': status,
+                                      'date': date}, ignore_index=True)
+    # Get the max-date for each player.
+    month_order = {'Oct': 0, 'Nov': 1, 'Dec': 2, 'Jan': 3, 'Feb': 4, 'Mar': 5, 'Apr': 6, 'May': 7, 'Jun': 8, 'Jul': 9}
+    data_df['month'] = data_df['date'].str.slice(0, 3)
+    data_df['month_order'] = data_df['month'].map(month_order)
+    data_df['day'] = data_df['date'].str.split(' ').str.get(1)
+    data_df['day'] = data_df['day'].apply(lambda x: '{0:0>2}'.format(x))
+    data_df['date_int'] = data_df['month_order'].map(str) + data_df['day']
 
-    names = names_even + names_odd
-    status = status_even + status_odd
+    # Drop un-needed columns
+    data_df = data_df.drop(['date', 'month', 'month_order', 'day'], axis=1)
 
-    injury_frame = pd.DataFrame({'name': names,
-                                 'player_status': status})
-    injury_frame.drop_duplicates(subset='name', inplace=True)
-    injury_frame.reset_index(inplace=True, drop=True)
-    return injury_frame
+    # Groupby - max(date_int) to get most recent injury for each player
+    idx = data_df.groupby(['Tm', 'name'])['date_int'].transform(max) == data_df['date_int']
+    data_df = data_df[idx].reset_index(drop=True)
+
+    # Drop date-int column
+    data_df = data_df.drop(['date_int'], axis=1)
+    return data_df
 
 ######
 # Get current NBA Lines
 def get_lines(site):
+    """
+    :param site:
+    :return:
+    """
     page = requests.get(site)
-    tree = html.fromstring(page.text)
-    names = tree.xpath('//table/tr/td/text()')
-    starter_regex = re.compile(r'[A-Z a-z]+ at [A-Z a-z]+,')
-    team_groups = []
-    for x in names:
-        group_num = -1
-        if starter_regex.match(x):
-            group_num += 1
-            team_groups.append([x])
-        else:
-            team_groups[group_num].extend([x])
+    if page.status_code == 200:
+        # Extract the HTML text.
+        site_html = page.text
+        # Convert HTML text to beautiful soup object
+        soup = BeautifulSoup(site_html, "html5lib")
+        # Get specific table
+        table = soup.find('table') # , attrs={'class': 'mod-container mod-table mod-no-header'}
+        # Initialize dataframe
+        headings = ['source', 'home_team', 'visitor_team',
+                    'spread', 'visitor_spread_ml', 'home_spread_ml',
+                    'total', 'total_over', 'total_under',
+                    'home_ml', 'visitor_ml']
+        data_df = pd.DataFrame(columns=headings)
+        # Store column information into a dataframe
+        for ix, row in enumerate(table.find_all("tr", {'class': ['oddrow', 'evenrow']})):
+            temp_source = row.find_all('td')[0].get_text()
 
-    team_lines = pd.DataFrame()
+            if temp_source in ['Westgate', "Caesar's", 'William Hill', 'Wynn', 'Unibet']:
 
-    for tg in team_groups:
-        home_name_list = []
-        visitor_name_list = []
-        home_spread_list = []
-        visitor_spread_list = []
-        home_name_regex = re.compile(r' at ([A-Z a-z]+),')
-        visitor_name_regex = re.compile(r'([A-Z a-z]+) at ')
-        spread_regex = re.compile(r'^([+-][0-9]{1,2}[.0-9]*)')
-        site1 = 'BETONLINE.ag'
-        site2 = '5Dimes.eu'
-        site3 = 'SportsBetting.ag'
-        site4 = 'BOVADA'
-        site5 = 'Fantasy911.com'
-        site_list = []
-        v_h_spread_indicator = 1
-        for t in tg:
-            if home_name_regex.search(t):
-                home_name_list.extend([home_name_regex.search(t).group(0)[4:-1]])
-            if visitor_name_regex.search(t):
-                visitor_name_list.extend([visitor_name_regex.search(t).group(0)[:-4]])
-            if spread_regex.match(t):
-                if v_h_spread_indicator == 0:
-                    home_spread_list.extend([float(t)])
-                    v_h_spread_indicator = 1
-                else:
-                    visitor_spread_list.extend([float(t)])
-                    v_h_spread_indicator = 0
-            if t == site1:
-                site_list.extend(['betonline'])
-            if t == site2:
-                site_list.extend(['fivedimes'])
-            if t == site3:
-                site_list.extend(['sportsbetting'])
-            if t == site4:
-                site_list.extend(['bovada'])
-            if t == site5:
-                site_list.extend(['fantasy911'])
-            if t == 'EVEN':
-                home_spread_list.extend([0])
-                visitor_spread_list.extend([0])
-        temp_team_frame = pd.DataFrame({'home_spread': home_spread_list,
-                                        'visitor_spread': visitor_spread_list,
-                                        'site': site_list})
-        temp_team_frame['home'] = home_name_list[0]
-        temp_team_frame['visitor'] = visitor_name_list[0]
-        team_lines = team_lines.append(temp_team_frame)
-    team_lines = team_lines.reset_index(drop=True)
+                # Get spread information
+                temp_spread = row.find_all('tr')[0].find_all('td')[0].contents[0]
+                temp_ml_spread = [str(x) for x in row.find_all('tr')[0].find_all('td')[1].contents if
+                                  str(x) not in ['<br/>']]
+                temp_team_visitor = temp_ml_spread[0].split(': ')[0]
+                temp_visitor_ml_spread = temp_ml_spread[0].split(': ')[1]
+                temp_team_home = temp_ml_spread[1].split(': ')[0]
+                temp_home_ml_spread = temp_ml_spread[1].split(': ')[1]
+
+                # Get total score information
+                temp_total = row.find_all('tr')[1].find_all('td')[0].contents[0]
+                temp_total_bets = [str(x) for x in row.find_all('tr')[1].find_all('td')[1].contents if
+                                   str(x) not in ['<br/>']]
+                temp_total_over = temp_total_bets[0].split(': ')[1]
+                temp_total_under = temp_total_bets[1].split(': ')[1]
+
+                # Get money-line information
+                money_lines = [str(x) for x in row.find_all('td')[7].contents if str(x) not in ['<br/>']]
+                temp_team_visitor2 = money_lines[0].split(': ')[0]
+                temp_team_home2 = money_lines[1].split(': ')[0]
+                assert temp_team_visitor == temp_team_visitor2, 'Visitor Teams do not match, {} , {}'.format(
+                    temp_team_visitor, temp_team_visitor2)
+                assert temp_team_home == temp_team_home2, 'Home Teams do not match, {} , {}'.format(temp_team_home,
+                                                                                                    temp_team_home2)
+                temp_ml_visitor = money_lines[0].split(': ')[1]
+                temp_ml_home = money_lines[1].split(': ')[1]
+
+                temp_dict = {
+                    'source': temp_source,
+                    'home_team': temp_team_home,
+                    'visitor_team': temp_team_visitor,
+                    'spread': temp_spread,
+                    'visitor_spread_ml': temp_visitor_ml_spread,
+                    'home_spread_ml': temp_home_ml_spread,
+                    'total': temp_total,
+                    'total_over': temp_total_over,
+                    'total_under': temp_total_under,
+                    'home_ml': temp_ml_home,
+                    'visitor_ml': temp_ml_visitor
+                }
+                data_df = data_df.append(temp_dict, ignore_index=True)
+    else:
+        log.warn('Got status code: {} for URL request: {}'.format(page.status_code, site))
 
     team_name_dict = {'LA Lakers': 'LAL',
                   'Houston': 'HOU',
@@ -207,6 +300,5 @@ def get_lines(site):
                   'Dallas': 'DAL',
                   'Utah': 'UTA',
                   'LA Clippers': 'LAC'}
-    team_lines = team_lines.replace({'home': team_name_dict,
-                                     'visitor': team_name_dict})
-    return(team_lines)
+    team_lines = data_df.replace({'home': team_name_dict, 'visitor': team_name_dict})
+    return team_lines
