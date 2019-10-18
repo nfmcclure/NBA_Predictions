@@ -12,7 +12,7 @@ import pandas as pd
 import numpy as np
 import os
 import sqlite3
-import Webstats_Funs
+from src import Webstats_Funs
 from datetime import datetime, timedelta
 from pandas.io import sql
 from twython import Twython

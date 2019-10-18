@@ -10,9 +10,8 @@
 
 import pandas as pd
 import numpy as np
-import GA_Funs
+from src import GA_Funs, Webstats_Funs
 import datetime
-import Webstats_Funs
 import os
 import sqlite3
 from datetime import datetime, timedelta
@@ -266,8 +265,8 @@ fitness = np.repeat(0.0, N_pop)
 
 for n in range(N_pop):
     fitness[n] = GA_Funs.get_fitness(population[n,], schedule_data,
-                                             team_data1, team_data2, team_cols1, team_cols2,
-                                             player_data1, player_data2, player_cols1, player_cols2, health_data)
+                                     team_data1, team_data2, team_cols1, team_cols2,
+                                     player_data1, player_data2, player_cols1, player_cols2, health_data)
 
 
 ######
@@ -297,7 +296,7 @@ for g in range(N_gen):
         parent2 = parent_population[np.random.randint(len(parent_population), size=1)]
         children_pop[c,:] = GA_Funs.get_child(parent1, parent2)
         # Mutate Children
-        children_pop[c,:] = GA_Funs.mutate_individual(children_pop[c,:], mutation_p, lower_bounds, upper_bounds)
+        children_pop[c,:] = GA_Funs.mutate_individual(children_pop[c, :], mutation_p, lower_bounds, upper_bounds)
 
     # Combine children and parents
     population = np.vstack((parent_population, children_pop))
