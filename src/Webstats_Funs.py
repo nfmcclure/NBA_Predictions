@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
 
-def xnum(s,val):
+def xnum(s, val):
     if s is None:
         return val
     return float(s)
@@ -38,6 +38,7 @@ def get_stats(site, paginate=False):
     :return: pandas dataframe of team statistics.
     """
     # Get site response structure object.
+    log.info('Getting Data.')
     page = requests.get(site)
     # Extract the HTML text.
     site_html = page.text
@@ -55,8 +56,9 @@ def get_stats(site, paginate=False):
 
     # Get more paginated results
     if paginate:
+        log.info('Paginating through data.')
         text_addon = "&offset="
-        seq_addon = range(100, 401, 100)
+        seq_addon = range(100, 501, 100)
         for a in seq_addon:
             # Get site response structure object.
             page = requests.get(site + text_addon + str(a))

@@ -59,20 +59,23 @@ if __name__ == "__main__":
     log_filename = os.path.join('logs', 'NBA_log_' + today.replace('-', '') + '.log')
     logging.basicConfig(filename=log_filename, level=logging.DEBUG, format='%(asctime)s : %(message)s')
 
-    logging.info('Starting NBA GA Prediction')
-    logging.info('days_predict = %s', days_predict)
-    logging.info('year = %s', year)
-    logging.info('N_gen = %s', N_gen)
-    logging.info('N_pop = %s', N_pop)
-    logging.info('top_selection = %s', top_selection)
-    logging.info('mutation_p = %s', mutation_p)
-    logging.info('today = %s', today)
+    logging.info('Starting NBA Prediction Program')
+    logging.info('With the following configuration parameters:')
+    for k, v in config.items():
+        if isinstance(v, dict):
+            logging.info('{} :'.format(k))
+            for k1, v1 in v.items():
+                logging.info('{} - {}: {}'.format(k, k1, v1))
+        else:
+            logging.info('{}: {}'.format(k, v))
 
     # Load reference websites (Needs year variable, because 'year' is part of the URLs, 2018, 2019, etc...)
+    logging.info('Returning websites for year: {}'.format(year))
     websites = website_sources.return_websites(year)
 
     # Load data
     #    - This sets up a dictionary of pandas data frames.
     #    - with keys: ['team1', 'team2', 'player1', 'player2', 'health', 'schedule', 'future_schedule, 'odds'],
     #      each one a data frame
+    logging.info('Retrieving the data required.')
     data = utils.get_data(websites, today)
