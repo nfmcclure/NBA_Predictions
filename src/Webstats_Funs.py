@@ -99,6 +99,8 @@ def get_schedule(site):
             table = soup.find("table", attrs={"id": "schedule"})
             # Get column names
             headings = [th.get_text() for th in table.find_all("tr")[0].find_all("th")]
+            headings[3] = 'visitor_pts'
+            headings[5] = 'home_pts'
             headings[6:8] = ['temp', 'overtime']
             # Store column information into a dataframe
             for row in table.find_all("tr")[1:]:
@@ -107,7 +109,7 @@ def get_schedule(site):
                 temp_dict = dict(zip(headings, temp_row))
                 data_df = data_df.append(temp_dict, ignore_index=True)
         else:
-            log.warn('Got status code: {} for URL request: {}'.format(page.status_code, site + month + '.html'))
+            log.warning('Got status code: {} for URL request: {}'.format(page.status_code, site + month + '.html'))
 
     # Drop strange 'box score' column.
     data_df = data_df.drop('temp', 1)

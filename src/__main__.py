@@ -79,3 +79,7 @@ if __name__ == "__main__":
     #      each one a data frame
     logging.info('Retrieving the data required.')
     data = utils.get_data(websites, today)
+
+    # Store data in a database
+
+    # Store data in cloud provider

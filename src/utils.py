@@ -26,7 +26,7 @@ def get_data(websites, today_date):
     health_data['update_date'] = today_date
     schedule_data = Webstats_Funs.get_schedule(site=websites['schedule_site'])
     schedule_data['update_date'] = today_date
-    odds_data = Webstats_Funs.get_lines(websites['odds_site'])
+    odds_data = Webstats_Funs.get_lines(site=websites['odds_site'])
     odds_data['update_date'] = today_date
 
     # Some ETL
