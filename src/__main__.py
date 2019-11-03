@@ -16,7 +16,6 @@ import timeit
 import logging
 import numpy as np
 import pandas as pd
-from neo4j import GraphDatabase
 
 from src import GA_Funs, utils
 from resources import website_sources
@@ -80,6 +79,50 @@ if __name__ == "__main__":
     logging.info('Retrieving the data required.')
     data = utils.get_data(websites, today)
 
-    # Store data in a database
-
+    ######
+    # Store data in a sqlite3-database
+    for name, df_val in data.items():
+        utils.save_frame2table(data_frame=df_val,
+                               table_name=name,
+                               sqldb_name='nba_db.db',
+                               db_folder='resources',
+                               e_option='append')
     # Store data in cloud provider
+    # TODO: Research which cloud DB to use and implement it.
+
+    ######
+    # Create a game weight vector
+    #  - this will be a vector of weights to score fitness on (scaled to a sum of 1)
+    #  - parameters:
+    #    -- t1: how many days far back the scaling of highest equal weights go
+    #    -- t2: how many more days back the linear scaling down to zero go (zero after)
+    logging.info('Setting Game Weights')
+    t1 = 21  # (Last 3 weeks of games equally weighted)
+    t2 = 42  # (3 more weeks, so zero weight for games older than 6 weeks)
+
+    schedule_data = data['schedule'].copy()
+    num_games_within_t1 = sum(schedule_data['days_ago'] <= t1)
+    num_games_within_t2 = sum((schedule_data['days_ago'] > t1) & (data['schedule']['days_ago'] <= t2))
+    num_zero_weights = sum(schedule_data['days_ago'] > t2)
+
+    weight_list = np.repeat(0.0, (num_games_within_t1 + num_games_within_t2 + num_zero_weights))
+    weight_list[0:num_games_within_t1] = np.repeat(1.0, num_games_within_t1)
+    weight_list[num_games_within_t1:(num_games_within_t2 + num_games_within_t1)] = np.linspace(1.0, 0.0,
+                                                                                               num=num_games_within_t2)
+    weight_list = weight_list[::-1]
+    weight_list = [x / sum(weight_list) for x in weight_list]  # Normalize to sum of 1
+
+    schedule_data['weights'] = weight_list
+
+    num_games = num_games_within_t1 + num_games_within_t2
+    first_weight_row = schedule_data[schedule_data['weights'] > 0].index.tolist()[0]
+
+    # Get Winner
+    schedule_data['winner'] = schedule_data.apply(utils.get_winner, axis=1)
+    logging.info('Saving Game Data to Database')
+    utils.save_frame2table(data_frame=schedule_data,
+                           table_name='schedule',
+                           sqldb_name='nba_db.db',
+                           db_folder='resources',
+                           e_option='replace')
+

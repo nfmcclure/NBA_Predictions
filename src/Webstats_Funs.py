@@ -16,6 +16,8 @@ import pandas as pd
 from lxml import html
 from bs4 import BeautifulSoup
 
+from src.config import config
+
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
@@ -31,10 +33,11 @@ def xnum(s, val):
 #     return str(s)
 
 
-def get_stats(site, paginate=False):
+def get_stats(site, paginate=False, column_names=None):
     """
     :param site: String. Website HTML address for table of statistics.
     :param paginate: Logical. If results are paginated, keep getting more.
+    :param column_names: Rename columns of table fetched (helps deal with duplicate column names), if not None.
     :return: pandas dataframe of team statistics.
     """
     # Get site response structure object.
@@ -76,6 +79,10 @@ def get_stats(site, paginate=False):
     data_df['Tm'] = data_df['Tm'].str.replace('*', '')
     # Drop spacer rows that have NA as values (remnant from HTML site)
     data_df = data_df.dropna(how='all')
+
+    # Rename columns
+    if column_names:
+        data_df.columns = column_names
 
     return data_df
 

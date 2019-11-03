@@ -6,6 +6,7 @@ Date: 2019-10-18
 Author: nfmcclure@gmail.com
 
 """
+import json
 from datetime import datetime, timedelta
 
 yesterday = datetime.now() - timedelta(days=1)
@@ -25,19 +26,20 @@ config = {
     'top_selection': 0.25,
     'today': datetime.today().strftime("%Y-%m-%d"),
     'yesterday': yesterday,
-    "team_data1_labels": ['rank', 'games', 'wins', 'losses', 'win_loss_per', 'mp', 'fg', 'fga', 'two_p', 'two_pa',
-                          'three_p', 'three_pa', 'ft', 'fta', 'orb', 'drb', 'trb', 'ast', 'stl', 'blk', 'tov', 'pf',
-                          'pts'],
-    "team_data2_labels": ['rank', 'games', 'wins', 'losses', 'win_loss_per', 'mov', 'sos', 'srs', 'pace', 'ortg',
-                          'drtg', 'efg_per', 'tov_per', 'orb_per', 'ft_fga', 'efg_per_opp', 'tov_per_opp',
-                          'orb_per_opp', 'ft_fga_opp'],
-    "player_data1_labels": ['rank', 'age', 'games', 'games_started', 'min_played', 'fg', 'fga', 'two_p', 'two_pa',
-                            'three_p', 'three_pa', 'ft', 'fta', 'orb', 'drb', 'trb', 'ast', 'stl', 'blk', 'tov', 'pf',
-                            'pts', 'fg_per', 'two_p_per', 'three_p_per', 'ft_per'],
-    "player_data2_labels": ['rank', 'age', 'games', 'games_started', 'min_played', 'per', 'ts_per', 'efg_per',
-                            'orb_per', 'drb_per', 'trb_per', 'ast_per', 'stl_per', 'blk_per', 'tov_per', 'usg_per',
-                            'ortg2', 'drtg2', 'ows', 'dws', 'ws', 'ws_48', 'fg_per', 'two_p_per', 'three_p_per',
-                            'ft_per'],
+    "team_data1_labels": ['season', 'team', 'league', 'games', 'wins', 'losses', 'win_loss_per', 'mp', 'fg', 'fga',
+                          'two_p', 'two_pa', 'three_p', 'three_pa', 'ft', 'fta', 'orb', 'drb', 'trb', 'ast', 'stl',
+                          'blk', 'tov', 'pf', 'pts'],
+    "team_data2_labels": ['season', 'team', 'league', 'games', 'wins', 'losses', 'win_loss_per', 'mov', 'sos', 'srs',
+                          'pace', 'ortg', 'drtg', 'efg_per', 'tov_per', 'orb_per', 'ft_fga', 'efg_per_opp',
+                          'tov_per_opp', 'orb_per_opp', 'ft_fga_opp'],
+    "player_data1_labels": ['season', 'age', 'team', 'league', 'player', 'games', 'games_started', 'min_played', 'fg',
+                            'fga', 'two_p', 'two_pa', 'three_p', 'three_pa', 'ft', 'fta', 'orb', 'drb', 'trb', 'ast',
+                            'stl', 'blk', 'tov', 'pf', 'pts', 'fg_per', 'two_p_per', 'three_p_per', 'e_fg_per',
+                            'ft_per', 'ts_per'],
+    "player_data2_labels": ['season', 'age', 'team', 'league', 'player', 'games', 'games_started', 'min_played', 'per',
+                            'three_pa_r', 'ft_r', 'orb_per', 'drb_per', 'trb_per', 'ast_per', 'stl_per', 'blk_per',
+                            'tov_per', 'usg_per', 'ortg', 'drtg', 'ows', 'dws', 'ws', 'ws_48', 'obpm', 'dbpm', 'bpm',
+                            'vorp'],
 }
 
 config.update({
@@ -82,3 +84,8 @@ config.update({
                        'Utah Jazz': 'UTA',
                        'Los Angeles Clippers': 'LAC'}
 })
+
+with open('secrets.json', 'r') as json_conn:
+    json_dict = json.load(json_conn)
+
+config.update(json_dict)
